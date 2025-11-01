@@ -146,3 +146,20 @@ header{transition:.5s;background-color:#FFF;padding:0 15px;box-shadow:0 2px 3px 
     background-color: #ccc;
     color: #000;
 }
+
+.imp-links .quick-links li a {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.more-less-button {
+    background: none;
+    border: none;
+    color: red;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 5px 0;
+    font-family: Cairo, sans-serif;
+}
