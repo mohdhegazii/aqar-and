@@ -68,7 +68,10 @@ function get_my_footer(){
 
 							if ( ! empty( $more_links ) ) {
 								echo '<ul class="quick-links more-links" style="display: none;">' . $more_links . '</ul>';
-								echo '<button class="more-less-button">' . esc_html( get_text( 'المزيد', 'Show More' ) ) . '</button>';
+								ob_start();
+								get_text( 'المزيد', 'Show More' );
+								$more_text = ob_get_clean();
+								echo '<button class="more-less-button">' . esc_html( $more_text ) . '</button>';
 							}
 						}
 						wp_reset_postdata();

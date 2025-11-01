@@ -45,27 +45,28 @@ function get_my_scripts(){
   echo '<script>window.aqarandDisableLegacySiteformHandler = true;</script>'."\n";
   echo '<script src="'.get_template_directory_uri().'/assets/js/'.$ldir.'/script.js?v=01"></script>'."\n";
   echo '<script src="'.wjsurl.'main.js?v=1.0"></script>'."\n";
+  ?>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const moreLessButton = document.querySelector('.more-less-button');
+      if (moreLessButton) {
+        moreLessButton.addEventListener('click', function () {
+          const moreLinks = document.querySelector('.more-links');
+          if (moreLinks.style.display === 'none') {
+            moreLinks.style.display = 'block';
+            <?php ob_start(); get_text("أقل", "Show Less"); $less_text = ob_get_clean(); ?>
+            moreLessButton.textContent = '<?php echo esc_js($less_text); ?>';
+          } else {
+            moreLinks.style.display = 'none';
+            <?php ob_start(); get_text("المزيد", "Show More"); $more_text = ob_get_clean(); ?>
+            moreLessButton.textContent = '<?php echo esc_js($more_text); ?>';
+          }
+        });
+      }
+    });
+  </script>
+  <?php
 }
-
-function enqueue_footer_toggle_script() {
-    wp_enqueue_script(
-        'custom-footer-toggle',
-        get_template_directory_uri() . '/assets/js/custom-footer.js',
-        array(),
-        '1.0',
-        true
-    );
-
-    wp_localize_script(
-        'custom-footer-toggle',
-        'footer_toggle_vars',
-        array(
-            'show_more' => get_text( 'المزيد', 'Show More' ),
-            'show_less' => get_text( 'أقل', 'Show Less' ),
-        )
-    );
-}
-add_action( 'wp_enqueue_scripts', 'enqueue_footer_toggle_script' );
 
 /* -----------------  ------------------ */
 
