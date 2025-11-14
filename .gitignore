@@ -1,0 +1,21 @@
+# OS junk files
+.DS_Store
+
+# Node / Build
+node_modules/
+dist/
+vendor/
+
+# Composer
+composer.lock
+
+# Logs
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# Cache
+cache/
+*.tmp

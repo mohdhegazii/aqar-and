@@ -1,0 +1,61 @@
+.aqarand-location-picker__map {
+    height: 320px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-top: 6px;
+}
+
+.aqarand-location-picker .leaflet-container {
+    font: inherit;
+}
+
+.aqarand-project-location-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.aqarand-project-location-grid__fields,
+.aqarand-project-location-grid__map {
+    flex: 1 1 auto;
+}
+
+.aqarand-project-location-field {
+    margin-bottom: 16px;
+}
+
+.aqarand-project-location-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.aqarand-project-location-field select {
+    width: 100%;
+    max-width: 100%;
+}
+
+.aqarand-project-location-errors {
+    display: none;
+    padding: 8px;
+    border: 1px solid #ffd6d6;
+    background: #fff7f7;
+    color: #a40000;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+@media (min-width: 960px) {
+    .aqarand-project-location-grid {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    .aqarand-project-location-grid__fields {
+        flex: 0 0 320px;
+    }
+
+    .aqarand-project-location-grid__map {
+        flex: 1 1 420px;
+    }
+}
