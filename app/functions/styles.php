@@ -326,9 +326,6 @@ function jawda_get_color($id)
   return $d[$id];
 }
 
-// Hook to enqueue styles and scripts
-function jawda_enqueue_assets() {
-    get_my_styles();
-    get_my_scripts();
-}
-add_action( 'wp_enqueue_scripts', 'jawda_enqueue_assets' );
+// The theme includes styles/scripts manually inside the header and footer
+// templates. Avoid registering another enqueue hook to prevent duplicate
+// injections that can break JavaScript controllers (like the services toggle).
