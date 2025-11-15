@@ -11,181 +11,50 @@ function get_my_related_projects() {
 
   ob_start();
 
-  $current_post_id   = get_the_ID();
-  $main_category_id  = absint( get_post_meta( $current_post_id, 'jawda_main_category_id', true ) );
-  $city_id           = absint( get_post_meta( $current_post_id, 'loc_city_id', true ) );
-  $district_id       = absint( get_post_meta( $current_post_id, 'loc_district_id', true ) );
-  $governorate_id    = absint( get_post_meta( $current_post_id, 'loc_governorate_id', true ) );
-  $posts_per_section = 5;
+  $current_post_id = get_the_ID();
+  $linked_ids      = jawda_get_internal_project_links( $current_post_id );
 
-  $base_args = array(
-      'post_type'    => 'projects',
-      'post__not_in' => array( $current_post_id ),
-      'orderby'      => 'date',
-      'order'        => 'DESC',
-      'date_query'   => array(
-          'before' => get_the_date( 'Y-m-d H:i:s', $current_post_id ),
-      ),
-  );
-
-  $base_meta_query = array();
-  if ( $main_category_id ) {
-      $base_meta_query[] = array(
-          'key'     => 'jawda_main_category_id',
-          'value'   => $main_category_id,
-          'compare' => '=',
-      );
+  if ( empty( $linked_ids ) ) {
+      $content = ob_get_clean();
+      echo minify_html( $content );
+      return;
   }
 
-  $collect_related_projects = function( $meta_key, $meta_value, $remaining, $exclude_ids = array() ) use ( $base_args, $base_meta_query ) {
-      if ( empty( $meta_value ) || $remaining <= 0 ) {
-          return array();
-      }
+  $related_projects = get_posts( array(
+      'post_type'      => 'projects',
+      'post__in'       => $linked_ids,
+      'posts_per_page' => count( $linked_ids ),
+      'orderby'        => 'post__in',
+  ) );
 
-      $args                     = $base_args;
-      $args['posts_per_page']   = $remaining;
-      $args['post__not_in']     = array_values( array_unique( array_merge( $base_args['post__not_in'], $exclude_ids ) ) );
-      $meta_query = $base_meta_query;
-      $meta_query[] = array(
-          'key'     => $meta_key,
-          'value'   => $meta_value,
-          'compare' => '=',
-      );
-
-      if ( count( $meta_query ) > 1 ) {
-          $meta_query = array_merge( array( 'relation' => 'AND' ), $meta_query );
-      }
-
-      $args['meta_query'] = $meta_query;
-
-      $query    = new WP_Query( $args );
-      $post_ids = wp_list_pluck( $query->posts, 'ID' );
-      wp_reset_postdata();
-
-      return $post_ids;
-  };
-
-  $similar_project_ids = array();
-
-  if ( $district_id ) {
-      $similar_project_ids = array_merge(
-          $similar_project_ids,
-          $collect_related_projects( 'loc_district_id', $district_id, $posts_per_section, $similar_project_ids )
-      );
+  if ( empty( $related_projects ) ) {
+      $content = ob_get_clean();
+      echo minify_html( $content );
+      return;
   }
 
-  if ( count( $similar_project_ids ) < $posts_per_section && $city_id ) {
-      $similar_project_ids = array_merge(
-          $similar_project_ids,
-          $collect_related_projects(
-              'loc_city_id',
-              $city_id,
-              $posts_per_section - count( $similar_project_ids ),
-              $similar_project_ids
-          )
-      );
-  }
+  ?>
 
-  if ( count( $similar_project_ids ) < $posts_per_section && $governorate_id ) {
-      $similar_project_ids = array_merge(
-          $similar_project_ids,
-          $collect_related_projects(
-              'loc_governorate_id',
-              $governorate_id,
-              $posts_per_section - count( $similar_project_ids ),
-              $similar_project_ids
-          )
-      );
-  }
-
-  $other_city_project_ids = array();
-  if ( $city_id ) {
-      $other_city_project_ids = $collect_related_projects(
-          'loc_city_id',
-          $city_id,
-          $posts_per_section,
-          array_merge( $similar_project_ids, array( $current_post_id ) )
-      );
-  } elseif ( ! empty( $base_meta_query ) ) {
-      $args = $base_args;
-      $args['posts_per_page'] = $posts_per_section;
-      $args['meta_query']     = count( $base_meta_query ) > 1 ? array_merge( array( 'relation' => 'AND' ), $base_meta_query ) : $base_meta_query;
-      $query                  = new WP_Query( $args );
-      $other_city_project_ids = wp_list_pluck( $query->posts, 'ID' );
-      wp_reset_postdata();
-  }
-
-  $has_related_content = ! empty( $similar_project_ids ) || ! empty( $other_city_project_ids );
-
-  if ( $has_related_content ) {
-      global $wpdb;
-      $is_ar   = function_exists( 'aqarand_is_arabic_locale' ) ? aqarand_is_arabic_locale() : is_rtl();
-      $name_col = $is_ar ? 'name_ar' : 'name_en';
-
-      $category_label = '';
-      if ( $main_category_id ) {
-          $category_label = $wpdb->get_var(
-              $wpdb->prepare( "SELECT {$name_col} FROM {$wpdb->prefix}property_categories WHERE id = %d", $main_category_id )
-          );
-      }
-
-      $city_label = '';
-      if ( $city_id ) {
-          $city_label = $wpdb->get_var(
-              $wpdb->prepare( "SELECT {$name_col} FROM {$wpdb->prefix}locations_cities WHERE id = %d", $city_id )
-          );
-      }
-
-      $other_heading = '';
-      if ( $category_label && $city_label ) {
-          $other_heading = $is_ar
-              ? sprintf( 'مشروعات %1$s أخرى في %2$s', $category_label, $city_label )
-              : sprintf( 'Other %1$s in %2$s', $category_label, $city_label );
-      }
-
-      ?>
-
-      <div>
-        <div class="container">
-          <?php if ( ! empty( $similar_project_ids ) ) : ?>
-            <div class="row">
-              <div class="col-md-12">
-                <div class="headline">
-                  <h2><?php txt( 'Similar projects' ); ?></h2>
-                  <div class="separator"></div>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <?php foreach ( $similar_project_ids as $project_id ) : ?>
-                <div class="col-md-4">
-                  <?php get_my_project_box( $project_id ); ?>
-                </div>
-              <?php endforeach; ?>
-            </div>
-          <?php endif; ?>
-
-          <?php if ( ! empty( $other_city_project_ids ) && $other_heading ) : ?>
-            <div class="row">
-              <div class="col-md-12">
-                <div class="headline">
-                  <h2><?php echo esc_html( $other_heading ); ?></h2>
-                  <div class="separator"></div>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <?php foreach ( $other_city_project_ids as $project_id ) : ?>
-                <div class="col-md-4">
-                  <?php get_my_project_box( $project_id ); ?>
-                </div>
-              <?php endforeach; ?>
-            </div>
-          <?php endif; ?>
+  <div>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12">
+          <div class="headline">
+            <h2><?php txt( 'Similar projects' ); ?></h2>
+            <div class="separator"></div>
+          </div>
         </div>
       </div>
-      <?php
-  }
+      <div class="row">
+        <?php foreach ( $related_projects as $project ) : ?>
+          <div class="col-md-4">
+            <?php get_my_project_box( $project->ID ); ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </div>
+  <?php
 
   $content = ob_get_clean();
   echo minify_html( $content );
