@@ -130,6 +130,11 @@ function get_my_scripts(){
 
         const extras = Array.from(list.querySelectorAll('.project-services__item--extra'));
         const primaryItems = Array.from(list.querySelectorAll('.project-services__item--primary:not(.project-services__item--extra)'));
+        if (!extras.length) {
+          section.classList.remove('project-services--collapsible');
+          return;
+        }
+
         section.classList.add('project-services--ready');
         const moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
         const lessLabel = toggle.getAttribute('data-less-label') || moreLabel;
@@ -139,13 +144,24 @@ function get_my_scripts(){
         const collapsedLimit = list.dataset.collapsedLimit ? parseInt(list.dataset.collapsedLimit, 10) : primaryItems.length;
 
         const setColumns = function (columns) {
-          if (!columns) {
+          if (!columns || Number.isNaN(columns)) {
             return;
           }
           columnClasses.forEach(function (className) {
             list.classList.remove(className);
           });
           list.classList.add('project-services__list--columns-' + columns);
+        };
+
+        const placeToggleBeforeExtras = function () {
+          const referenceNode = extras.find(function (item) {
+            return item.parentElement === list;
+          });
+          if (referenceNode) {
+            list.insertBefore(toggle, referenceNode);
+          } else {
+            list.appendChild(toggle);
+          }
         };
 
         const collapse = function (shouldScroll) {
@@ -157,11 +173,7 @@ function get_my_scripts(){
           extras.forEach(function (item) {
             item.setAttribute('hidden', '');
           });
-          if (extras.length) {
-            list.insertBefore(toggle, extras[0]);
-          } else {
-            list.appendChild(toggle);
-          }
+          placeToggleBeforeExtras();
           toggle.classList.remove('project-services__item--toggle--bottom');
           const fallback = Math.max(1, Math.min(5, collapsedLimit + (extras.length ? 1 : 0)));
           setColumns(collapsedColumns || fallback);
