@@ -49,6 +49,7 @@ function get_my_styles(){
     .project-services__item--toggle { order: initial !important; }
     .project-services__item--toggle--bottom { order: initial !important; grid-column: auto !important; }
     .project-services__item--extra[hidden] { display: none !important; }
+    .project-services--collapsible:not(.project-services--ready) .project-services__item--toggle { display: none !important; }
 
     @media (max-width: 991px) {
       .project-services__list { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px; }
@@ -129,6 +130,7 @@ function get_my_scripts(){
 
         const extras = Array.from(list.querySelectorAll('.project-services__item--extra'));
         const primaryItems = Array.from(list.querySelectorAll('.project-services__item--primary:not(.project-services__item--extra)'));
+        section.classList.add('project-services--ready');
         const moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
         const lessLabel = toggle.getAttribute('data-less-label') || moreLabel;
 
