@@ -94,10 +94,10 @@ function get_my_scripts(){
   ?>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const moreLessButton = document.querySelector('.more-less-button');
+      var moreLessButton = document.querySelector('.more-less-button');
       if (moreLessButton) {
         moreLessButton.addEventListener('click', function () {
-          const moreLinks = document.querySelector('.more-links');
+          var moreLinks = document.querySelector('.more-links');
           if (moreLinks.style.display === 'none') {
             moreLinks.style.display = 'block';
             <?php ob_start(); get_text("أقل", "Show Less"); $less_text = ob_get_clean(); ?>
@@ -112,8 +112,8 @@ function get_my_scripts(){
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-      const serviceSections = document.querySelectorAll('.project-services.project-services--collapsible');
-      const columnClasses = [
+      var serviceSections = document.querySelectorAll('.project-services.project-services--collapsible');
+      var columnClasses = [
         'project-services__list--columns-1',
         'project-services__list--columns-2',
         'project-services__list--columns-3',
@@ -121,42 +121,53 @@ function get_my_scripts(){
         'project-services__list--columns-5'
       ];
 
-      serviceSections.forEach(function (section) {
-        const list = section.querySelector('.project-services__list');
-        const toggle = section.querySelector('.project-services__item--toggle');
+      var toArray = function (nodeList) {
+        return Array.prototype.slice.call(nodeList || []);
+      };
+
+      var initSection = function (section) {
+        var list = section.querySelector('.project-services__list');
+        var toggle = section.querySelector('.project-services__item--toggle');
         if (!list || !toggle) {
           return;
         }
 
-        const extras = Array.from(list.querySelectorAll('.project-services__item--extra'));
-        const primaryItems = Array.from(list.querySelectorAll('.project-services__item--primary:not(.project-services__item--extra)'));
+        var extras = toArray(list.querySelectorAll('.project-services__item--extra'));
+        var primaryItems = toArray(list.querySelectorAll('.project-services__item--primary:not(.project-services__item--extra)'));
         if (!extras.length) {
           section.classList.remove('project-services--collapsible');
           return;
         }
 
         section.classList.add('project-services--ready');
-        const moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
-        const lessLabel = toggle.getAttribute('data-less-label') || moreLabel;
+        var moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
+        var lessLabel = toggle.getAttribute('data-less-label') || moreLabel;
 
-        const collapsedColumns = list.dataset.columnsCollapsed ? parseInt(list.dataset.columnsCollapsed, 10) : 0;
-        const expandedColumns = list.dataset.columnsExpanded ? parseInt(list.dataset.columnsExpanded, 10) : collapsedColumns;
-        const collapsedLimit = list.dataset.collapsedLimit ? parseInt(list.dataset.collapsedLimit, 10) : primaryItems.length;
+        var collapsedColumnsAttr = list.getAttribute('data-columns-collapsed');
+        var expandedColumnsAttr = list.getAttribute('data-columns-expanded');
+        var collapsedLimitAttr = list.getAttribute('data-collapsed-limit');
+        var collapsedColumns = collapsedColumnsAttr ? parseInt(collapsedColumnsAttr, 10) : 0;
+        var expandedColumns = expandedColumnsAttr ? parseInt(expandedColumnsAttr, 10) : collapsedColumns;
+        var collapsedLimit = collapsedLimitAttr ? parseInt(collapsedLimitAttr, 10) : primaryItems.length;
 
-        const setColumns = function (columns) {
-          if (!columns || Number.isNaN(columns)) {
+        var setColumns = function (columns) {
+          if (!columns || isNaN(columns)) {
             return;
           }
-          columnClasses.forEach(function (className) {
-            list.classList.remove(className);
-          });
+          for (var idx = 0; idx < columnClasses.length; idx++) {
+            list.classList.remove(columnClasses[idx]);
+          }
           list.classList.add('project-services__list--columns-' + columns);
         };
 
-        const placeToggleBeforeExtras = function () {
-          const referenceNode = extras.find(function (item) {
-            return item.parentElement === list;
-          });
+        var placeToggleBeforeExtras = function () {
+          var referenceNode = null;
+          for (var j = 0; j < extras.length; j++) {
+            if (extras[j].parentElement === list) {
+              referenceNode = extras[j];
+              break;
+            }
+          }
           if (referenceNode) {
             list.insertBefore(toggle, referenceNode);
           } else {
@@ -164,22 +175,22 @@ function get_my_scripts(){
           }
         };
 
-        const collapse = function (shouldScroll) {
+        var collapse = function (shouldScroll) {
           section.classList.remove('project-services--expanded');
           toggle.setAttribute('aria-expanded', 'false');
           if (moreLabel) {
             toggle.textContent = moreLabel;
           }
-          extras.forEach(function (item) {
-            item.setAttribute('hidden', '');
-          });
+          for (var k = 0; k < extras.length; k++) {
+            extras[k].setAttribute('hidden', '');
+          }
           placeToggleBeforeExtras();
           toggle.classList.remove('project-services__item--toggle--bottom');
-          const fallback = Math.max(1, Math.min(5, collapsedLimit + (extras.length ? 1 : 0)));
-          setColumns(collapsedColumns || fallback);
+          var fallbackCollapsed = Math.max(1, Math.min(5, collapsedLimit + (extras.length ? 1 : 0)));
+          setColumns(collapsedColumns || fallbackCollapsed);
           if (shouldScroll) {
-            const scrollOffset = 120;
-            const listTop = list.getBoundingClientRect().top + window.pageYOffset;
+            var scrollOffset = 120;
+            var listTop = list.getBoundingClientRect().top + window.pageYOffset;
             window.scrollTo({
               top: Math.max(listTop - scrollOffset, 0),
               behavior: 'smooth'
@@ -187,17 +198,17 @@ function get_my_scripts(){
           }
         };
 
-        const expand = function () {
+        var expand = function () {
           section.classList.add('project-services--expanded');
           toggle.setAttribute('aria-expanded', 'true');
           toggle.textContent = lessLabel || moreLabel;
-          extras.forEach(function (item) {
-            item.removeAttribute('hidden');
-          });
+          for (var m = 0; m < extras.length; m++) {
+            extras[m].removeAttribute('hidden');
+          }
           list.appendChild(toggle);
           toggle.classList.add('project-services__item--toggle--bottom');
-          const fallback = Math.max(1, Math.min(5, primaryItems.length + extras.length));
-          setColumns(expandedColumns || collapsedColumns || fallback);
+          var fallbackExpanded = Math.max(1, Math.min(5, primaryItems.length + extras.length));
+          setColumns(expandedColumns || collapsedColumns || fallbackExpanded);
         };
 
         collapse(false);
@@ -209,32 +220,35 @@ function get_my_scripts(){
             expand();
           }
         });
-      });
+      };
+
+      for (var i = 0; i < serviceSections.length; i++) {
+        initSection(serviceSections[i]);
+      }
     });
 
 
 
     function equalizeCardHeights() {
-      document.querySelectorAll('.row').forEach(function(row) {
-        const cards = row.querySelectorAll('.projectbxspace .related-box');
+      var rows = document.querySelectorAll('.row');
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var cards = row.querySelectorAll('.projectbxspace .related-box');
         if (cards.length > 1) {
-          let maxHeight = 0;
-          // Reset heights first to get the natural height
-          cards.forEach(function(card) {
-            card.style.height = 'auto';
-          });
-          // Find the max height
-          cards.forEach(function(card) {
-            if (card.offsetHeight > maxHeight) {
-              maxHeight = card.offsetHeight;
+          var maxHeight = 0;
+          for (var j = 0; j < cards.length; j++) {
+            cards[j].style.height = 'auto';
+          }
+          for (var k = 0; k < cards.length; k++) {
+            if (cards[k].offsetHeight > maxHeight) {
+              maxHeight = cards[k].offsetHeight;
             }
-          });
-          // Apply the max height to all cards in the row
-          cards.forEach(function(card) {
-            card.style.height = maxHeight + 'px';
-          });
+          }
+          for (var m = 0; m < cards.length; m++) {
+            cards[m].style.height = maxHeight + 'px';
+          }
         }
-      });
+      }
     }
 
     document.addEventListener('DOMContentLoaded', equalizeCardHeights);
