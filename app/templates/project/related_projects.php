@@ -23,9 +23,6 @@ function get_my_related_projects() {
       'post__not_in' => array( $current_post_id ),
       'orderby'      => 'date',
       'order'        => 'DESC',
-      'date_query'   => array(
-          'before' => get_the_date( 'Y-m-d H:i:s', $current_post_id ),
-      ),
   );
 
   if ( ! empty( $related_category ) && is_array( $related_category ) ) {
