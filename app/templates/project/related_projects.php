@@ -109,7 +109,7 @@ function get_my_related_projects() {
 
   if ( $has_related_content ) {
       global $wpdb;
-      $is_ar   = function_exists( 'aqarand_is_arabic_locale' ) ? aqarand_is_arabic_locale() : is_rtl();
+      $is_ar    = function_exists( 'aqarand_is_arabic_locale' ) ? aqarand_is_arabic_locale() : is_rtl();
       $name_col = $is_ar ? 'name_ar' : 'name_en';
 
       $category_label = '';
@@ -131,9 +131,11 @@ function get_my_related_projects() {
               : sprintf( 'Other %1$s in %2$s', $category_label, $city_label );
       }
 
+      $section_label = $is_ar ? 'مشروعات ذات صلة' : 'Related projects';
+
       ?>
 
-      <div>
+      <section class="related-projects" aria-label="<?php echo esc_attr( $section_label ); ?>">
         <div class="container">
           <?php if ( ! empty( $similar_project_ids ) ) : ?>
             <div class="row">
@@ -171,7 +173,7 @@ function get_my_related_projects() {
             </div>
           <?php endif; ?>
         </div>
-      </div>
+      </section>
       <?php
   }
 

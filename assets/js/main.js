@@ -120,4 +120,39 @@ jQuery(document).ready(function($) {
             currentForm = null;
         }
     });
+
+    $('.imp-links').on('click', '.more-less-button', function() {
+        const button = $(this);
+        const listId = button.attr('aria-controls');
+        if (!listId) {
+            return;
+        }
+
+        const escapeSelector = $.escapeSelector || function(sel) {
+            return sel.replace(/([ #;?%&,.+*~\'":^$\[\]()=>|\/])/g, '\\$1');
+        };
+
+        const listSelector = '#' + escapeSelector(listId);
+        const linksList = $(listSelector);
+
+        if (!linksList.length) {
+            return;
+        }
+
+        const isExpanded = button.attr('aria-expanded') === 'true';
+        const moreText = button.data('more-text') || button.text();
+        const lessText = button.data('less-text') || button.text();
+
+        if (isExpanded) {
+            linksList.slideUp(200, function() {
+                linksList.attr('aria-hidden', 'true');
+            });
+            button.attr('aria-expanded', 'false').text(moreText);
+        } else {
+            linksList.slideDown(200, function() {
+                linksList.attr('aria-hidden', 'false');
+            });
+            button.attr('aria-expanded', 'true').text(lessText);
+        }
+    });
 });

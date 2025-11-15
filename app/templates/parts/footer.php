@@ -64,18 +64,25 @@ function get_my_footer(){
 								}
 								$count++;
 							}
-							echo '</ul>';
+                                                        echo '</ul>';
 
-							if ( ! empty( $more_links ) ) {
-								echo '<ul class="quick-links more-links" style="display: none;">' . $more_links . '</ul>';
-								ob_start();
-								get_text( 'المزيد', 'Show More' );
-								$more_text = ob_get_clean();
-								echo '<button class="more-less-button">' . esc_html( $more_text ) . '</button>';
-							}
-						}
-						wp_reset_postdata();
-						?>
+                                                        if ( ! empty( $more_links ) ) {
+                                                                $more_list_id = function_exists( 'wp_unique_id' ) ? wp_unique_id( 'more-links-' ) : uniqid( 'more-links-' );
+                                                                echo '<ul id="' . esc_attr( $more_list_id ) . '" class="quick-links more-links" style="display: none;" aria-hidden="true">' . $more_links . '</ul>';
+
+                                                                ob_start();
+                                                                get_text( 'المزيد', 'Show More' );
+                                                                $more_text = ob_get_clean();
+
+                                                                ob_start();
+                                                                get_text( 'عرض عناصر أقل', 'Show Less' );
+                                                                $less_text = ob_get_clean();
+
+                                                                echo '<button class="more-less-button" type="button" aria-expanded="false" aria-controls="' . esc_attr( $more_list_id ) . '" data-more-text="' . esc_attr( $more_text ) . '" data-less-text="' . esc_attr( $less_text ) . '">' . esc_html( $more_text ) . '</button>';
+                                                        }
+                                                }
+                                                wp_reset_postdata();
+                                                ?>
 					</div>
 				</div>
 				<div class="col-md-3">
