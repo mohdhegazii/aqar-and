@@ -61,6 +61,8 @@ $functionslist = [
     'pagination', 'shortcodes', 'editor_buttons', 'jawda_leads',
     'jawda_leads_download', 'translate', 'smtp_settings', 'smtp_mailer', 'locations-migrator', 'aqarand-locations-admin/aqarand-locations-admin', 'auto_catalog'
 ];
+// Load after existing helpers to ensure dependencies are available.
+$functionslist[] = 'internal_project_links';
 load_my_files($functionslist, FUNC_DIR);
 
 /* -----------------------------------------------------
