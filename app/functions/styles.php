@@ -49,16 +49,25 @@ function get_my_styles(){
     .project-services__item--toggle { order: initial !important; }
     .project-services__item--toggle--bottom { order: initial !important; grid-column: auto !important; }
     .project-services__item--extra[hidden] { display: none !important; }
+    .related-projects-slider { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; align-items: stretch; }
+    .related-projects-slider__item { height: 100%; }
+    .related-projects-slider .related-box { height: 100%; }
+    .related-projects-slider.slick-slider { display: block; }
+    .related-projects-slider .slick-slide { height: auto; }
+    .related-projects-slider .slick-slide > div { height: 100%; }
+    .related-projects-slider.slick-slider .related-projects-slider__item { padding: 0 12px; }
 
     @media (max-width: 991px) {
       .project-services__list { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px; }
       .project-services__list--columns-1 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
       .project-services__list--columns-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .related-projects-slider { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     }
 
     @media (max-width: 767px) {
       .project-services__item { min-height: 120px; padding: 12px; }
       .project-services__item--toggle { min-height: 120px; }
+      .related-projects-slider { grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 12px; }
     }
   ';
 
@@ -90,6 +99,7 @@ function get_my_scripts(){
   echo '<script src="'.get_template_directory_uri().'/assets/js/frontend-locations.js?v=1.0"></script>'."\n";
   echo '<script src="'.get_template_directory_uri().'/assets/js/'.$ldir.'/script.js?v=01"></script>'."\n";
   echo '<script src="'.wjsurl.'main.js?v=1.0"></script>'."\n";
+  echo '<script src="'.get_template_directory_uri().'/assets/js/related-projects-slider.js?v=1.0"></script>'."\n";
   ?>
   <script>
     document.addEventListener('DOMContentLoaded', function () {

@@ -59,7 +59,7 @@ $functionslist = [
     'basics', 'helper', 'menus', 'minifier', 'settings', 'post_types',
     'payment_plans', 'meta_box', 'styles', 'form_handler', 'tgm', 'schema',
     'pagination', 'shortcodes', 'editor_buttons', 'jawda_leads',
-    'jawda_leads_download', 'translate', 'smtp_settings', 'smtp_mailer', 'locations-migrator', 'aqarand-locations-admin/aqarand-locations-admin', 'auto_catalog'
+    'jawda_leads_download', 'translate', 'smtp_settings', 'smtp_mailer', 'locations-migrator', 'aqarand-locations-admin/aqarand-locations-admin', 'auto_catalog', 'project_internal_links'
 ];
 load_my_files($functionslist, FUNC_DIR);
 
