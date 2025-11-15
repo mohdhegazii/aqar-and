@@ -60,6 +60,14 @@ function get_my_styles(){
       .project-services__item { min-height: 120px; padding: 12px; }
       .project-services__item--toggle { min-height: 120px; }
     }
+
+    body.single-projects .related-projects,
+    body.single-projects .imp-links,
+    body.single-projects #footer {
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
   ';
 
   $style .= '</style>'."\n";

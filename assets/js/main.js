@@ -155,4 +155,32 @@ jQuery(document).ready(function($) {
             button.attr('aria-expanded', 'true').text(lessText);
         }
     });
+
+    if ($('body').hasClass('single-projects')) {
+        const sectionsToReveal = $('.related-projects, .imp-links, #footer');
+
+        sectionsToReveal.each(function() {
+            const section = $(this);
+
+            if (!section.length) {
+                return;
+            }
+
+            if (section.attr('hidden')) {
+                section.removeAttr('hidden');
+            }
+
+            if (section.hasClass('d-none') || section.hasClass('hidden')) {
+                section.removeClass('d-none hidden');
+            }
+
+            if (section.is(':hidden')) {
+                section.css({
+                    display: 'block',
+                    opacity: 1,
+                    visibility: 'visible'
+                });
+            }
+        });
+    }
 });
