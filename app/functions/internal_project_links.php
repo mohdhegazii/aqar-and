@@ -8,6 +8,10 @@ if ( ! defined( 'JAWDA_INTERNAL_LINKS_META_KEY' ) ) {
     define( 'JAWDA_INTERNAL_LINKS_META_KEY', '_internal_related_projects_ids' );
 }
 
+if ( ! defined( 'JAWDA_INTERNAL_LINKS_LAST_GENERATED_OPTION' ) ) {
+    define( 'JAWDA_INTERNAL_LINKS_LAST_GENERATED_OPTION', 'jawda_internal_links_last_generated' );
+}
+
 /**
  * Regenerate internal links for all published projects.
  *
@@ -43,6 +47,7 @@ function jawda_regenerate_internal_project_links() {
     );
 
     if ( empty( $rows ) ) {
+        update_option( JAWDA_INTERNAL_LINKS_LAST_GENERATED_OPTION, time(), false );
         return;
     }
 
@@ -141,6 +146,7 @@ function jawda_regenerate_internal_project_links() {
     }
 
     if ( empty( $final_clusters ) ) {
+        update_option( JAWDA_INTERNAL_LINKS_LAST_GENERATED_OPTION, time(), false );
         return;
     }
 
@@ -190,6 +196,7 @@ function jawda_regenerate_internal_project_links() {
         $linked_ids = $links_map[ $project_id ] ?? [];
         update_post_meta( $project_id, JAWDA_INTERNAL_LINKS_META_KEY, $linked_ids );
     }
+    update_option( JAWDA_INTERNAL_LINKS_LAST_GENERATED_OPTION, time(), false );
 }
 
 /**
@@ -211,6 +218,23 @@ function jawda_maybe_regenerate_project_links_on_publish( $new_status, $old_stat
     jawda_regenerate_internal_project_links();
 }
 add_action( 'transition_post_status', 'jawda_maybe_regenerate_project_links_on_publish', 10, 3 );
+
+/**
+ * Ensure the internal project links are generated at least once.
+ *
+ * When the theme is updated on an existing site, the stored meta may not
+ * exist yet. This guard regenerates the dataset one time on the first
+ * request after deployment so the related projects section does not
+ * disappear.
+ */
+function jawda_ensure_internal_project_links_initialized() {
+    $status = get_option( JAWDA_INTERNAL_LINKS_LAST_GENERATED_OPTION, '' );
+
+    if ( empty( $status ) ) {
+        jawda_regenerate_internal_project_links();
+    }
+}
+add_action( 'init', 'jawda_ensure_internal_project_links_initialized', 20 );
 
 /**
  * Retrieve the stored internal links for a project.
