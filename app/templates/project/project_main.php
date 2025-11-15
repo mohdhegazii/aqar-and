@@ -307,6 +307,7 @@ function get_my_project_main(){
 
                 $list_classes = ['project-services__list'];
                 $list_attributes = [];
+                $list_id = sprintf('project-services-list-%s', uniqid());
                 $columns_collapsed = 0;
                 $columns_expanded = 0;
 
@@ -334,6 +335,7 @@ function get_my_project_main(){
                 }
 
                 $list_attributes['class'] = implode(' ', $list_classes);
+                $list_attributes['id'] = $list_id;
 
                 $list_attr_html_parts = [];
                 foreach ($list_attributes as $attr_name => $attr_value) {
@@ -393,6 +395,7 @@ function get_my_project_main(){
                             class="project-services__item project-services__item--toggle"
                             data-more-label="<?php echo esc_attr($more_label); ?>"
                             data-less-label="<?php echo esc_attr($less_label); ?>"
+                            aria-controls="<?php echo esc_attr($list_id); ?>"
                             aria-expanded="false">
                       <?php echo esc_html($more_label); ?>
                     </button>
@@ -413,7 +416,7 @@ function get_my_project_main(){
                             $initial = function_exists('mb_substr') ? mb_substr($display_name, 0, 1, 'UTF-8') : substr($display_name, 0, 1);
                         }
                       ?>
-                      <div class="project-services__item project-services__item--primary project-services__item--extra"<?php echo $hidden_count > 0 ? ' hidden' : ''; ?>>
+                      <div class="project-services__item project-services__item--primary project-services__item--extra">
                         <div class="project-services__icon">
                           <?php if ($image_html !== ''): ?>
                             <?php echo wp_kses_post($image_html); ?>

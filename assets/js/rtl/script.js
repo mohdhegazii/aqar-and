@@ -12,7 +12,7 @@ $("#banner-slider").slick({autoplay:!0,autoplaySpeed:4e3,slidesToShow:1,rtl:!0,d
 // tabs
 $(document).ready(function(){$("ul.tabs li").click(function(){var t=$(this).attr("data-tab");$("ul.tabs li").removeClass("current"),$(".tab-content").removeClass("current"),$(this).addClass("current"),$("#"+t).addClass("current")})});
 // To top
-function myFunction(){document.body.scrollTop>500||document.documentElement.scrollTop>500?document.getElementById("back-top").className="show-me":document.getElementById("back-top").className="hide-me",document.body.scrollTop>200||document.documentElement.scrollTop>200?document.getElementById("floating-icons").className="show-me":document.getElementById("floating-icons").className="hide-me"}window.onscroll=function(){myFunction()};
+function myFunction(){var e=document.body.scrollTop||document.documentElement.scrollTop,t=document.getElementById("back-top"),n=document.getElementById("floating-icons");t&&(t.className=e>500?"show-me":"hide-me"),n&&(n.className=e>200?"show-me":"hide-me")}window.addEventListener?window.addEventListener("scroll",function(){myFunction()}):window.onscroll=function(){myFunction()};
 // matchHeight
 $(function(){$(".area-box").matchHeight()}),$(function(){$(".recent-box").matchHeight()}),$(function(){$(".unit-box").matchHeight()});
 /* --- Form --- */

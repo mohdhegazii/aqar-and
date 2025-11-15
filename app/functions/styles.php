@@ -48,7 +48,8 @@ function get_my_styles(){
     .project-services__list--columns-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
     .project-services__item--toggle { order: initial !important; }
     .project-services__item--toggle--bottom { order: initial !important; grid-column: auto !important; }
-    .project-services__item--extra[hidden] { display: none !important; }
+    .project-services--collapsible:not(.project-services--ready) .project-services__item--toggle { display: none !important; }
+    .project-services--ready:not(.project-services--expanded) .project-services__item--extra { display: none !important; }
 
     @media (max-width: 991px) {
       .project-services__list { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px; }
@@ -87,16 +88,16 @@ function get_my_scripts(){
   echo '<script>var global = {"ajax":'.json_encode( admin_url( "admin-ajax.php" ) ).'};</script>'."\n";
   echo '<script>var search_nonce = {"nonce":"'.$search_nonce.'"}</script>';
   echo '<script>window.aqarandDisableLegacySiteformHandler = true;</script>'."\n";
-  echo '<script src="'.get_template_directory_uri().'/assets/js/frontend-locations.js?v=1.0"></script>'."\n";
   echo '<script src="'.get_template_directory_uri().'/assets/js/'.$ldir.'/script.js?v=01"></script>'."\n";
+  echo '<script src="'.get_template_directory_uri().'/assets/js/frontend-locations.js?v=1.0"></script>'."\n";
   echo '<script src="'.wjsurl.'main.js?v=1.0"></script>'."\n";
   ?>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const moreLessButton = document.querySelector('.more-less-button');
+      var moreLessButton = document.querySelector('.more-less-button');
       if (moreLessButton) {
         moreLessButton.addEventListener('click', function () {
-          const moreLinks = document.querySelector('.more-links');
+          var moreLinks = document.querySelector('.more-links');
           if (moreLinks.style.display === 'none') {
             moreLinks.style.display = 'block';
             <?php ob_start(); get_text("أقل", "Show Less"); $less_text = ob_get_clean(); ?>
@@ -111,8 +112,8 @@ function get_my_scripts(){
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-      const serviceSections = document.querySelectorAll('.project-services.project-services--collapsible');
-      const columnClasses = [
+      var sections = document.querySelectorAll('.project-services.project-services--collapsible');
+      var columnClasses = [
         'project-services__list--columns-1',
         'project-services__list--columns-2',
         'project-services__list--columns-3',
@@ -120,70 +121,122 @@ function get_my_scripts(){
         'project-services__list--columns-5'
       ];
 
-      serviceSections.forEach(function (section) {
-        const list = section.querySelector('.project-services__list');
-        const toggle = section.querySelector('.project-services__item--toggle');
+      var parseColumns = function (value) {
+        var parsed = parseInt(value, 10);
+        if (isNaN(parsed) || parsed < 1 || parsed > 5) {
+          return 0;
+        }
+        return parsed;
+      };
+
+      var updateColumns = function (list, columns) {
+        if (!list) {
+          return;
+        }
+        for (var idx = 0; idx < columnClasses.length; idx++) {
+          list.classList.remove(columnClasses[idx]);
+        }
+        if (columns) {
+          list.classList.add('project-services__list--columns-' + columns);
+        }
+      };
+
+      var hideExtra = function (node) {
+        if (!node) {
+          return;
+        }
+        node.setAttribute('aria-hidden', 'true');
+        node.setAttribute('hidden', 'hidden');
+        node.style.display = '';
+      };
+
+      var showExtra = function (node) {
+        if (!node) {
+          return;
+        }
+        node.removeAttribute('aria-hidden');
+        node.removeAttribute('hidden');
+        node.style.display = '';
+      };
+
+      var findFirstExtra = function (extras, list) {
+        if (!extras || !list) {
+          return null;
+        }
+        for (var idx = 0; idx < extras.length; idx++) {
+          if (extras[idx] && extras[idx].parentNode === list) {
+            return extras[idx];
+          }
+        }
+        return null;
+      };
+
+      var initSection = function (section) {
+        if (!section) {
+          return;
+        }
+
+        var list = section.querySelector('.project-services__list');
+        var toggle = section.querySelector('.project-services__item--toggle');
         if (!list || !toggle) {
           return;
         }
 
-        const extras = Array.from(list.querySelectorAll('.project-services__item--extra'));
-        const primaryItems = Array.from(list.querySelectorAll('.project-services__item--primary:not(.project-services__item--extra)'));
-        const moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
-        const lessLabel = toggle.getAttribute('data-less-label') || moreLabel;
+        var extras = list.querySelectorAll('.project-services__item--extra');
+        var primaryCount = list.querySelectorAll('.project-services__item--primary').length - extras.length;
+        if (!extras.length) {
+          section.classList.remove('project-services--collapsible');
+          return;
+        }
 
-        const collapsedColumns = list.dataset.columnsCollapsed ? parseInt(list.dataset.columnsCollapsed, 10) : 0;
-        const expandedColumns = list.dataset.columnsExpanded ? parseInt(list.dataset.columnsExpanded, 10) : collapsedColumns;
-        const collapsedLimit = list.dataset.collapsedLimit ? parseInt(list.dataset.collapsedLimit, 10) : primaryItems.length;
+        section.classList.add('project-services--ready');
+        var moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
+        var lessLabel = toggle.getAttribute('data-less-label') || moreLabel || '';
 
-        const setColumns = function (columns) {
-          if (!columns) {
-            return;
-          }
-          columnClasses.forEach(function (className) {
-            list.classList.remove(className);
-          });
-          list.classList.add('project-services__list--columns-' + columns);
-        };
+        var collapsedColumns = parseColumns(list.getAttribute('data-columns-collapsed'));
+        var expandedColumns = parseColumns(list.getAttribute('data-columns-expanded'));
+        var collapsedLimit = parseInt(list.getAttribute('data-collapsed-limit'), 10);
+        if (isNaN(collapsedLimit) || collapsedLimit < 1) {
+          collapsedLimit = primaryCount;
+        }
 
-        const collapse = function (shouldScroll) {
-          section.classList.remove('project-services--expanded');
-          toggle.setAttribute('aria-expanded', 'false');
-          if (moreLabel) {
-            toggle.textContent = moreLabel;
-          }
-          extras.forEach(function (item) {
-            item.setAttribute('hidden', '');
-          });
-          if (extras.length) {
-            list.insertBefore(toggle, extras[0]);
+        var fallbackCollapsed = collapsedColumns || Math.max(1, Math.min(5, collapsedLimit + 1));
+        var fallbackExpanded = expandedColumns || Math.max(1, Math.min(5, primaryCount + extras.length));
+
+        var placeToggleBeforeExtras = function () {
+          var reference = findFirstExtra(extras, list);
+          if (reference) {
+            list.insertBefore(toggle, reference);
           } else {
             list.appendChild(toggle);
           }
+        };
+
+        var collapse = function (shouldScroll) {
+          section.classList.remove('project-services--expanded');
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.textContent = moreLabel;
+          for (var idx = 0; idx < extras.length; idx++) {
+            hideExtra(extras[idx]);
+          }
+          placeToggleBeforeExtras();
           toggle.classList.remove('project-services__item--toggle--bottom');
-          const fallback = Math.max(1, Math.min(5, collapsedLimit + (extras.length ? 1 : 0)));
-          setColumns(collapsedColumns || fallback);
-          if (shouldScroll) {
-            const scrollOffset = 120;
-            const listTop = list.getBoundingClientRect().top + window.pageYOffset;
-            window.scrollTo({
-              top: Math.max(listTop - scrollOffset, 0),
-              behavior: 'smooth'
-            });
+          updateColumns(list, fallbackCollapsed);
+          if (shouldScroll && list && typeof list.scrollIntoView === 'function') {
+            list.scrollIntoView();
           }
         };
 
-        const expand = function () {
+        var expand = function () {
           section.classList.add('project-services--expanded');
           toggle.setAttribute('aria-expanded', 'true');
-          toggle.textContent = lessLabel || moreLabel;
-          extras.forEach(function (item) {
-            item.removeAttribute('hidden');
-          });
+          toggle.textContent = lessLabel;
+          for (var idx = 0; idx < extras.length; idx++) {
+            showExtra(extras[idx]);
+          }
           list.appendChild(toggle);
           toggle.classList.add('project-services__item--toggle--bottom');
-          const fallback = Math.max(1, Math.min(5, primaryItems.length + extras.length));
-          setColumns(expandedColumns || collapsedColumns || fallback);
+          updateColumns(list, fallbackExpanded);
         };
 
         collapse(false);
@@ -195,32 +248,35 @@ function get_my_scripts(){
             expand();
           }
         });
-      });
+      };
+
+      for (var i = 0; i < sections.length; i++) {
+        initSection(sections[i]);
+      }
     });
 
 
 
     function equalizeCardHeights() {
-      document.querySelectorAll('.row').forEach(function(row) {
-        const cards = row.querySelectorAll('.projectbxspace .related-box');
+      var rows = document.querySelectorAll('.row');
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var cards = row.querySelectorAll('.projectbxspace .related-box');
         if (cards.length > 1) {
-          let maxHeight = 0;
-          // Reset heights first to get the natural height
-          cards.forEach(function(card) {
-            card.style.height = 'auto';
-          });
-          // Find the max height
-          cards.forEach(function(card) {
-            if (card.offsetHeight > maxHeight) {
-              maxHeight = card.offsetHeight;
+          var maxHeight = 0;
+          for (var j = 0; j < cards.length; j++) {
+            cards[j].style.height = 'auto';
+          }
+          for (var k = 0; k < cards.length; k++) {
+            if (cards[k].offsetHeight > maxHeight) {
+              maxHeight = cards[k].offsetHeight;
             }
-          });
-          // Apply the max height to all cards in the row
-          cards.forEach(function(card) {
-            card.style.height = maxHeight + 'px';
-          });
+          }
+          for (var m = 0; m < cards.length; m++) {
+            cards[m].style.height = maxHeight + 'px';
+          }
         }
-      });
+      }
     }
 
     document.addEventListener('DOMContentLoaded', equalizeCardHeights);
@@ -270,9 +326,6 @@ function jawda_get_color($id)
   return $d[$id];
 }
 
-// Hook to enqueue styles and scripts
-function jawda_enqueue_assets() {
-    get_my_styles();
-    get_my_scripts();
-}
-add_action( 'wp_enqueue_scripts', 'jawda_enqueue_assets' );
+// The theme includes styles/scripts manually inside the header and footer
+// templates. Avoid registering another enqueue hook to prevent duplicate
+// injections that can break JavaScript controllers (like the services toggle).
