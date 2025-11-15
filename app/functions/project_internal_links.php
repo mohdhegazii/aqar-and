@@ -11,7 +11,15 @@ const JAWDA_PROJECT_LINKS_SCOPE_META_KEY = '_internal_related_projects_scope';
  * Retrieve the cached related project IDs for a given project.
  */
 function jawda_get_project_internal_links( $project_id ) {
+    static $attempted_regeneration = false;
+
     $stored = get_post_meta( $project_id, JAWDA_PROJECT_LINKS_META_KEY, true );
+
+    if ( ! is_array( $stored ) && ! $attempted_regeneration ) {
+        $attempted_regeneration = true;
+        jawda_regenerate_project_internal_links();
+        $stored = get_post_meta( $project_id, JAWDA_PROJECT_LINKS_META_KEY, true );
+    }
 
     if ( ! is_array( $stored ) ) {
         return array();
