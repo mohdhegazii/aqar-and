@@ -22,32 +22,54 @@ function get_my_related_projects() {
       return;
   }
 
-  $current_post_date = get_post_time( 'Y-m-d H:i:s', false, $current_post_id );
-
-  $base_args = array(
-      'post_type'              => 'projects',
-      'post_status'            => 'publish',
-      'posts_per_page'         => $posts_per_section,
-      'orderby'                => 'date',
-      'order'                  => 'DESC',
-      'fields'                 => 'ids',
-      'post__not_in'           => array( $current_post_id ),
-      'no_found_rows'          => true,
-      'update_post_meta_cache' => false,
-      'update_post_term_cache' => false,
-  );
-
-  $base_meta_query = array(
-      'relation' => 'AND',
+  $query = new WP_Query(
       array(
-          'key'     => 'jawda_main_category_id',
-          'value'   => $main_category_id,
-          'compare' => '=',
-      ),
+          'post_type'              => 'projects',
+          'post_status'            => 'publish',
+          'posts_per_page'         => -1,
+          'orderby'                => 'date',
+          'order'                  => 'ASC',
+          'fields'                 => 'ids',
+          'no_found_rows'          => true,
+          'update_post_meta_cache' => false,
+          'update_post_term_cache' => false,
+          'meta_query'             => array(
+              array(
+                  'key'     => 'jawda_main_category_id',
+                  'value'   => $main_category_id,
+                  'compare' => '=',
+              ),
+          ),
+      )
   );
 
-  $collect_related_projects = function( $meta_key, $meta_value, $remaining, $exclude_ids, $direction ) use ( $base_args, $base_meta_query, $current_post_date ) {
-      if ( $remaining <= 0 ) {
+  $ordered_ids = array_map( 'intval', $query->posts );
+
+  wp_reset_postdata();
+
+  if ( empty( $ordered_ids ) ) {
+      return;
+  }
+
+  $current_index = array_search( $current_post_id, $ordered_ids, true );
+
+  if ( false === $current_index ) {
+      return;
+  }
+
+  $cache_meta_value = function( $post_id, $meta_key, &$cache ) {
+      if ( isset( $cache[ $post_id ][ $meta_key ] ) ) {
+          return $cache[ $post_id ][ $meta_key ];
+      }
+
+      $value = get_post_meta( $post_id, $meta_key, true );
+      $cache[ $post_id ][ $meta_key ] = $value;
+
+      return $value;
+  };
+
+  $ring_collect = function( $meta_key, $meta_value, $selected_ids, $limit ) use ( $ordered_ids, $current_index, &$cache_meta_value ) {
+      if ( $limit <= 0 ) {
           return array();
       }
 
@@ -55,52 +77,61 @@ function get_my_related_projects() {
           return array();
       }
 
-      $args                 = $base_args;
-      $args['posts_per_page'] = $remaining;
-      $args['post__not_in'] = array_values( array_unique( array_merge( $base_args['post__not_in'], $exclude_ids ) ) );
+      $collected   = array();
+      $meta_cache  = array();
+      $total_posts = count( $ordered_ids );
 
-      $meta_query = $base_meta_query;
+      $match_post = function( $post_id ) use ( $meta_key, $meta_value, &$cache_meta_value, &$meta_cache ) {
+          if ( ! $meta_key ) {
+              return true;
+          }
 
-      if ( $meta_key ) {
-          $meta_query[] = array(
-              'key'     => $meta_key,
-              'value'   => $meta_value,
-              'compare' => '=',
-          );
+          $value = $cache_meta_value( $post_id, $meta_key, $meta_cache );
+
+          return absint( $value ) === absint( $meta_value );
+      };
+
+      for ( $i = $current_index - 1; $i >= 0 && count( $collected ) < $limit; $i-- ) {
+          $post_id = $ordered_ids[ $i ];
+
+          if ( $post_id === $ordered_ids[ $current_index ] ) {
+              continue;
+          }
+
+          if ( in_array( $post_id, $selected_ids, true ) || in_array( $post_id, $collected, true ) ) {
+              continue;
+          }
+
+          if ( $match_post( $post_id ) ) {
+              $collected[] = $post_id;
+          }
       }
 
-      $args['meta_query'] = $meta_query;
+      if ( count( $collected ) < $limit ) {
+          for ( $i = $total_posts - 1; $i > $current_index && count( $collected ) < $limit; $i-- ) {
+              $post_id = $ordered_ids[ $i ];
 
-      if ( 'before' === $direction ) {
-          $args['date_query'] = array(
-              array(
-                  'column'    => 'post_date',
-                  'before'    => $current_post_date,
-                  'inclusive' => false,
-              ),
-          );
-      } elseif ( 'after' === $direction ) {
-          $args['date_query'] = array(
-              array(
-                  'column'    => 'post_date',
-                  'after'     => $current_post_date,
-                  'inclusive' => false,
-              ),
-          );
+              if ( $post_id === $ordered_ids[ $current_index ] ) {
+                  continue;
+              }
+
+              if ( in_array( $post_id, $selected_ids, true ) || in_array( $post_id, $collected, true ) ) {
+                  continue;
+              }
+
+              if ( $match_post( $post_id ) ) {
+                  $collected[] = $post_id;
+              }
+          }
       }
 
-      $query = new WP_Query( $args );
-      $ids   = array_map( 'intval', $query->posts );
-
-      wp_reset_postdata();
-
-      return $ids;
+      return $collected;
   };
 
   $location_meta_order = array(
-      'loc_district_id'   => $district_id,
-      'loc_city_id'       => $city_id,
-      'loc_governorate_id'=> $governorate_id,
+      'loc_district_id'    => $district_id,
+      'loc_city_id'        => $city_id,
+      'loc_governorate_id' => $governorate_id,
   );
 
   $related_ids = array();
@@ -114,30 +145,7 @@ function get_my_related_projects() {
 
       $related_ids = array_merge(
           $related_ids,
-          $collect_related_projects( $meta_key, $meta_value, $remaining, $related_ids, 'before' )
-      );
-  }
-
-  if ( count( $related_ids ) < $posts_per_section ) {
-      foreach ( $location_meta_order as $meta_key => $meta_value ) {
-          $remaining = $posts_per_section - count( $related_ids );
-
-          if ( $remaining <= 0 ) {
-              break;
-          }
-
-          $related_ids = array_merge(
-              $related_ids,
-              $collect_related_projects( $meta_key, $meta_value, $remaining, $related_ids, 'after' )
-          );
-      }
-  }
-
-  if ( count( $related_ids ) < $posts_per_section ) {
-      $remaining   = $posts_per_section - count( $related_ids );
-      $related_ids = array_merge(
-          $related_ids,
-          $collect_related_projects( null, null, $remaining, $related_ids, 'before' )
+          $ring_collect( $meta_key, $meta_value, $related_ids, $remaining )
       );
   }
 
@@ -145,12 +153,11 @@ function get_my_related_projects() {
       $remaining   = $posts_per_section - count( $related_ids );
       $related_ids = array_merge(
           $related_ids,
-          $collect_related_projects( null, null, $remaining, $related_ids, 'after' )
+          $ring_collect( null, null, $related_ids, $remaining )
       );
   }
 
-  $related_ids = array_values( array_unique( array_filter( $related_ids ) ) );
-  $related_ids = array_slice( $related_ids, 0, $posts_per_section );
+  $related_ids = array_slice( array_unique( array_filter( $related_ids ) ), 0, $posts_per_section );
 
   if ( ! empty( $related_ids ) ) {
       global $wpdb;
