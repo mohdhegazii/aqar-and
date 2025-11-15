@@ -27,61 +27,43 @@ function get_my_related_projects() {
       ),
   );
 
-  $related_ids = array();
-
-  $older_query = new WP_Query(
+  $all_projects_query = new WP_Query(
       array(
-          'post_type'      => 'projects',
-          'post_status'    => 'publish',
-          'posts_per_page' => $posts_per_section,
-          'post__not_in'   => array( $current_post_id ),
-          'orderby'        => 'date',
-          'order'          => 'DESC',
-          'meta_query'     => $base_meta_query,
-          'date_query'     => array(
-              array(
-                  'before'    => get_the_date( 'Y-m-d H:i:s', $current_post_id ),
-                  'inclusive' => false,
-              ),
-          ),
-          'fields'         => 'ids',
+          'post_type'              => 'projects',
+          'post_status'            => 'publish',
+          'posts_per_page'         => -1,
+          'orderby'                => 'date',
+          'order'                  => 'DESC',
+          'meta_query'             => $base_meta_query,
+          'fields'                 => 'ids',
+          'no_found_rows'          => true,
+          'update_post_meta_cache' => false,
+          'update_post_term_cache' => false,
       )
   );
 
-  if ( $older_query->have_posts() ) {
-      $related_ids = $older_query->posts;
+  $related_ids = array();
+
+  if ( $all_projects_query->have_posts() ) {
+      $all_project_ids = $all_projects_query->posts;
+      $current_index   = array_search( $current_post_id, $all_project_ids, true );
+
+      if ( false !== $current_index ) {
+          $total_projects = count( $all_project_ids );
+          $max_related    = min( $posts_per_section, max( 0, $total_projects - 1 ) );
+
+          if ( $max_related > 0 ) {
+              $pointer = ( $current_index + 1 ) % $total_projects;
+
+              while ( count( $related_ids ) < $max_related && $pointer !== $current_index ) {
+                  $related_ids[] = $all_project_ids[ $pointer ];
+                  $pointer       = ( $pointer + 1 ) % $total_projects;
+              }
+          }
+      }
   }
 
   wp_reset_postdata();
-
-  if ( count( $related_ids ) < $posts_per_section ) {
-      $remaining = $posts_per_section - count( $related_ids );
-
-      $newer_query = new WP_Query(
-          array(
-              'post_type'      => 'projects',
-              'post_status'    => 'publish',
-              'posts_per_page' => $remaining,
-              'post__not_in'   => array_merge( $related_ids, array( $current_post_id ) ),
-              'orderby'        => 'date',
-              'order'          => 'DESC',
-              'meta_query'     => $base_meta_query,
-              'date_query'     => array(
-                  array(
-                      'after'     => get_the_date( 'Y-m-d H:i:s', $current_post_id ),
-                      'inclusive' => false,
-                  ),
-              ),
-              'fields'         => 'ids',
-          )
-      );
-
-      if ( $newer_query->have_posts() ) {
-          $related_ids = array_merge( $related_ids, $newer_query->posts );
-      }
-
-      wp_reset_postdata();
-  }
 
   if ( ! empty( $related_ids ) ) {
       global $wpdb;
