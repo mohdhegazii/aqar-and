@@ -13,57 +13,43 @@ function get_my_related_projects() {
 
   $current_post_id = get_the_ID();
 
-  // Always work with the full ordered list of published projects so the
-  // circular algorithm stays consistent across every page render.
-  $all_project_ids = get_posts(
-      array(
-          'post_type'      => 'projects',
-          'post_status'    => 'publish',
-          'posts_per_page' => -1,
-          'orderby'        => 'date',
-          'order'          => 'DESC',
-          'fields'         => 'ids',
-      )
-  );
-
-  $total_projects = count( $all_project_ids );
-
-  // Without at least two projects there is nothing sensible to link to.
-  if ( $total_projects <= 1 ) {
-      return;
-  }
-
-  // Locate the current project within the ordered list to determine its index.
-  $current_index = array_search( $current_post_id, $all_project_ids, true );
-
-  // If the project is missing (unpublished or excluded) abort gracefully.
-  if ( false === $current_index ) {
-      return;
-  }
-
-  $links_per_project    = 5;
-  $related_project_ids = array();
-
-  if ( $total_projects <= $links_per_project ) {
-      // Special case: when the catalogue is small, link to every other project.
-      foreach ( $all_project_ids as $project_id ) {
-          if ( $project_id === $current_post_id ) {
-              continue;
-          }
-
-          $related_project_ids[] = $project_id;
-      }
-  } else {
-      // Standard case: take the next K projects in publish-date order, wrapping
-      // back to the newest projects once we hit the end of the list.
-      for ( $offset = 1; $offset <= $links_per_project; $offset++ ) {
-          $wrapped_index = ( $current_index + $offset ) % $total_projects;
-          $related_project_ids[] = $all_project_ids[ $wrapped_index ];
-      }
-  }
+  $related_project_ids = jawda_get_project_internal_links( $current_post_id );
 
   if ( empty( $related_project_ids ) ) {
       return;
+  }
+
+  $filtered_ids = array();
+  $seen         = array();
+
+  foreach ( $related_project_ids as $project_id ) {
+      $project_id = absint( $project_id );
+
+      if ( $project_id === $current_post_id ) {
+          continue;
+      }
+
+      if ( isset( $seen[ $project_id ] ) ) {
+          continue;
+      }
+
+      if ( 'publish' !== get_post_status( $project_id ) ) {
+          continue;
+      }
+
+      $seen[ $project_id ] = true;
+      $filtered_ids[]      = $project_id;
+  }
+
+  if ( empty( $filtered_ids ) ) {
+      return;
+  }
+
+  $heading = jawda_get_project_internal_links_heading( $current_post_id );
+
+  if ( '' === $heading ) {
+      $is_arabic = function_exists( 'aqarand_is_arabic_locale' ) ? aqarand_is_arabic_locale() : is_rtl();
+      $heading   = $is_arabic ? 'مشروعات مشابهة' : 'Related projects';
   }
 
   ?>
@@ -73,13 +59,13 @@ function get_my_related_projects() {
       <div class="row">
         <div class="col-md-12">
           <div class="headline">
-            <h2><?php txt( 'Related projects' ); ?></h2>
+            <h2><?php echo esc_html( $heading ); ?></h2>
             <div class="separator"></div>
           </div>
         </div>
       </div>
       <div class="row">
-        <?php foreach ( $related_project_ids as $project_id ) : ?>
+        <?php foreach ( $filtered_ids as $project_id ) : ?>
           <div class="col-md-4">
             <?php get_my_project_box( $project_id ); ?>
           </div>
