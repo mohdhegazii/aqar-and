@@ -11,12 +11,12 @@ function get_my_related_projects() {
 
   ob_start();
 
-  $current_post_id   = get_the_ID();
-  $related_category  = get_the_terms( $current_post_id, 'project_category' );
-  $city_id           = absint( get_post_meta( $current_post_id, 'loc_city_id', true ) );
-  $district_id       = absint( get_post_meta( $current_post_id, 'loc_district_id', true ) );
-  $governorate_id    = absint( get_post_meta( $current_post_id, 'loc_governorate_id', true ) );
-  $posts_per_section = 5;
+  $current_post_id    = get_the_ID();
+  $main_category_id   = absint( get_post_meta( $current_post_id, 'jawda_main_category_id', true ) );
+  $city_id            = absint( get_post_meta( $current_post_id, 'loc_city_id', true ) );
+  $district_id        = absint( get_post_meta( $current_post_id, 'loc_district_id', true ) );
+  $governorate_id     = absint( get_post_meta( $current_post_id, 'loc_governorate_id', true ) );
+  $posts_per_section  = 5;
 
   $base_args = array(
       'post_type'    => 'projects',
@@ -28,18 +28,17 @@ function get_my_related_projects() {
       ),
   );
 
-  if ( ! empty( $related_category ) && is_array( $related_category ) ) {
-      $base_args['tax_query'] = array(
-          'relation' => 'AND',
-          array(
-              'taxonomy' => 'project_category',
-              'field'    => 'term_id',
-              'terms'    => wp_list_pluck( $related_category, 'term_id' ),
-          ),
+  $base_meta_query = array();
+
+  if ( $main_category_id ) {
+      $base_meta_query[] = array(
+          'key'     => 'jawda_main_category_id',
+          'value'   => $main_category_id,
+          'compare' => '=',
       );
   }
 
-  $collect_related_projects = function( $meta_key, $meta_value, $remaining, $exclude_ids = array() ) use ( $base_args ) {
+  $collect_related_projects = function( $meta_key, $meta_value, $remaining, $exclude_ids = array() ) use ( $base_args, $base_meta_query ) {
       if ( empty( $meta_value ) || $remaining <= 0 ) {
           return array();
       }
@@ -47,13 +46,21 @@ function get_my_related_projects() {
       $args                     = $base_args;
       $args['posts_per_page']   = $remaining;
       $args['post__not_in']     = array_values( array_unique( array_merge( $base_args['post__not_in'], $exclude_ids ) ) );
-      $args['meta_query']       = array(
-          array(
-              'key'     => $meta_key,
-              'value'   => $meta_value,
-              'compare' => '=',
-          ),
+      $meta_query               = $base_meta_query;
+      $meta_query[]             = array(
+          'key'     => $meta_key,
+          'value'   => $meta_value,
+          'compare' => '=',
       );
+
+      if ( count( $meta_query ) > 1 ) {
+          $args['meta_query'] = array_merge(
+              array( 'relation' => 'AND' ),
+              $meta_query
+          );
+      } else {
+          $args['meta_query'] = $meta_query;
+      }
 
       $query    = new WP_Query( $args );
       $post_ids = wp_list_pluck( $query->posts, 'ID' );
@@ -113,8 +120,13 @@ function get_my_related_projects() {
       $name_col = $is_ar ? 'name_ar' : 'name_en';
 
       $category_label = '';
-      if ( ! empty( $related_category ) && isset( $related_category[0] ) ) {
-          $category_label = $related_category[0]->name;
+      if ( $main_category_id ) {
+          $category_label = $wpdb->get_var(
+              $wpdb->prepare(
+                  "SELECT {$name_col} FROM {$wpdb->prefix}property_categories WHERE id = %d",
+                  $main_category_id
+              )
+          );
       }
 
       $city_label = '';
