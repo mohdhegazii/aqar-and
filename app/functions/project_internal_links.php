@@ -15,10 +15,28 @@ function jawda_get_project_internal_links( $project_id ) {
 
     $stored = get_post_meta( $project_id, JAWDA_PROJECT_LINKS_META_KEY, true );
 
+    if ( is_string( $stored ) && $stored !== '' ) {
+        $maybe_unserialized = maybe_unserialize( $stored );
+        if ( is_array( $maybe_unserialized ) ) {
+            $stored = $maybe_unserialized;
+        } else {
+            $stored = array_filter( array_map( 'absint', array_map( 'trim', explode( ',', $stored ) ) ) );
+        }
+    }
+
     if ( ! is_array( $stored ) && ! $attempted_regeneration ) {
         $attempted_regeneration = true;
         jawda_regenerate_project_internal_links();
         $stored = get_post_meta( $project_id, JAWDA_PROJECT_LINKS_META_KEY, true );
+
+        if ( is_string( $stored ) && $stored !== '' ) {
+            $maybe_unserialized = maybe_unserialize( $stored );
+            if ( is_array( $maybe_unserialized ) ) {
+                $stored = $maybe_unserialized;
+            } else {
+                $stored = array_filter( array_map( 'absint', array_map( 'trim', explode( ',', $stored ) ) ) );
+            }
+        }
     }
 
     if ( ! is_array( $stored ) ) {
@@ -57,9 +75,17 @@ function jawda_get_project_internal_links_scope( $project_id ) {
  * Build the localized heading for a project's related links section.
  */
 function jawda_get_project_internal_links_heading( $project_id ) {
+    $scope = jawda_get_project_internal_links_scope( $project_id );
+
+    return jawda_format_project_internal_links_heading( $scope );
+}
+
+/**
+ * Build the localized heading for a project's related links section using a scope definition.
+ */
+function jawda_format_project_internal_links_heading( array $scope ) {
     global $wpdb;
 
-    $scope = jawda_get_project_internal_links_scope( $project_id );
     if ( empty( $scope['category_id'] ) ) {
         return '';
     }
@@ -110,6 +136,175 @@ function jawda_get_project_internal_links_heading( $project_id ) {
     return $is_arabic
         ? sprintf( 'مشروعات %s مشابهة', $category_name )
         : sprintf( 'Related %s projects', $category_name );
+}
+
+/**
+ * Fallback query that mirrors the previous dynamic behaviour when no stored links exist.
+ */
+function jawda_get_project_internal_links_fallback_data( $project_id ) {
+    $project_id = absint( $project_id );
+
+    if ( ! $project_id ) {
+        return array(
+            'ids'     => array(),
+            'heading' => '',
+        );
+    }
+
+    $main_category_id  = absint( get_post_meta( $project_id, 'jawda_main_category_id', true ) );
+    $city_id           = absint( get_post_meta( $project_id, 'loc_city_id', true ) );
+    $district_id       = absint( get_post_meta( $project_id, 'loc_district_id', true ) );
+    $governorate_id    = absint( get_post_meta( $project_id, 'loc_governorate_id', true ) );
+    $posts_per_section = 5;
+
+    if ( ! $main_category_id ) {
+        return array(
+            'ids'     => array(),
+            'heading' => '',
+        );
+    }
+
+    $base_args = array(
+        'post_type'      => 'projects',
+        'post_status'    => 'publish',
+        'post__not_in'   => array( $project_id ),
+        'orderby'        => 'date',
+        'order'          => 'DESC',
+        'date_query'     => array(
+            array(
+                'before'    => get_post_field( 'post_date', $project_id ),
+                'inclusive' => false,
+            ),
+        ),
+        'fields'         => 'ids',
+        'posts_per_page' => $posts_per_section,
+        'no_found_rows'  => true,
+    );
+
+    $base_meta_query = array(
+        array(
+            'key'     => 'jawda_main_category_id',
+            'value'   => $main_category_id,
+            'compare' => '=',
+        ),
+    );
+
+    $collect = function( $meta_key, $meta_value, $remaining, $exclude_ids = array() ) use ( $base_args, $base_meta_query ) {
+        if ( empty( $meta_value ) || $remaining <= 0 ) {
+            return array();
+        }
+
+        $args                   = $base_args;
+        $args['posts_per_page'] = $remaining;
+        $args['post__not_in']   = array_values( array_unique( array_merge( $base_args['post__not_in'], array_map( 'absint', (array) $exclude_ids ) ) ) );
+
+        $meta_query   = $base_meta_query;
+        $meta_query[] = array(
+            'key'     => $meta_key,
+            'value'   => $meta_value,
+            'compare' => '=',
+        );
+
+        if ( count( $meta_query ) > 1 ) {
+            $meta_query = array_merge( array( 'relation' => 'AND' ), $meta_query );
+        }
+
+        $args['meta_query'] = $meta_query;
+
+        $query    = new WP_Query( $args );
+        $post_ids = array_map( 'absint', $query->posts );
+        wp_reset_postdata();
+
+        return $post_ids;
+    };
+
+    $related_ids    = array();
+    $scope_level    = '';
+    $scope_location = 0;
+
+    if ( $district_id ) {
+        $district_posts = $collect( 'loc_district_id', $district_id, $posts_per_section, $related_ids );
+        if ( ! empty( $district_posts ) ) {
+            $related_ids    = array_merge( $related_ids, $district_posts );
+            $scope_level    = 'district';
+            $scope_location = $district_id;
+        }
+    }
+
+    if ( count( $related_ids ) < $posts_per_section && $city_id ) {
+        $remaining  = $posts_per_section - count( $related_ids );
+        $city_posts = $collect( 'loc_city_id', $city_id, $remaining, $related_ids );
+
+        if ( ! empty( $city_posts ) ) {
+            $related_ids    = array_merge( $related_ids, $city_posts );
+            $scope_level    = 'city';
+            $scope_location = $city_id;
+        }
+    }
+
+    if ( count( $related_ids ) < $posts_per_section && $governorate_id ) {
+        $remaining       = $posts_per_section - count( $related_ids );
+        $gov_posts       = $collect( 'loc_governorate_id', $governorate_id, $remaining, $related_ids );
+        if ( ! empty( $gov_posts ) ) {
+            $related_ids    = array_merge( $related_ids, $gov_posts );
+            $scope_level    = 'governorate';
+            $scope_location = $governorate_id;
+        }
+    }
+
+    if ( count( $related_ids ) < $posts_per_section ) {
+        $remaining = $posts_per_section - count( $related_ids );
+
+        $args                   = $base_args;
+        $args['posts_per_page'] = $remaining;
+        $args['post__not_in']   = array_values( array_unique( array_merge( $base_args['post__not_in'], $related_ids ) ) );
+
+        $meta_query = $base_meta_query;
+        if ( count( $meta_query ) > 1 ) {
+            $meta_query = array_merge( array( 'relation' => 'AND' ), $meta_query );
+        }
+
+        $args['meta_query'] = $meta_query;
+
+        $query      = new WP_Query( $args );
+        $more_posts = array_map( 'absint', $query->posts );
+        wp_reset_postdata();
+
+        if ( ! empty( $more_posts ) ) {
+            $related_ids = array_merge( $related_ids, $more_posts );
+            if ( '' === $scope_level ) {
+                $scope_level    = 'category';
+                $scope_location = 0;
+            }
+        }
+    }
+
+    $related_ids = array_slice( array_values( array_unique( array_map( 'absint', $related_ids ) ) ), 0, $posts_per_section );
+
+    if ( empty( $related_ids ) ) {
+        return array(
+            'ids'     => array(),
+            'heading' => '',
+        );
+    }
+
+    if ( '' === $scope_level ) {
+        $scope_level    = 'category';
+        $scope_location = 0;
+    }
+
+    $heading = jawda_format_project_internal_links_heading(
+        array(
+            'level'       => $scope_level,
+            'location_id' => $scope_location,
+            'category_id' => $main_category_id,
+        )
+    );
+
+    return array(
+        'ids'     => $related_ids,
+        'heading' => $heading,
+    );
 }
 
 /**

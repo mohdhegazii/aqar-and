@@ -14,6 +14,19 @@ function get_my_related_projects() {
   $current_post_id = get_the_ID();
 
   $related_project_ids = jawda_get_project_internal_links( $current_post_id );
+  $heading             = jawda_get_project_internal_links_heading( $current_post_id );
+
+  if ( empty( $related_project_ids ) ) {
+      $fallback = jawda_get_project_internal_links_fallback_data( $current_post_id );
+
+      if ( isset( $fallback['ids'] ) && is_array( $fallback['ids'] ) ) {
+          $related_project_ids = $fallback['ids'];
+      }
+
+      if ( '' === $heading && ! empty( $fallback['heading'] ) ) {
+          $heading = $fallback['heading'];
+      }
+  }
 
   if ( empty( $related_project_ids ) ) {
       return;
@@ -44,8 +57,6 @@ function get_my_related_projects() {
   if ( empty( $filtered_ids ) ) {
       return;
   }
-
-  $heading = jawda_get_project_internal_links_heading( $current_post_id );
 
   if ( '' === $heading ) {
       $is_arabic = function_exists( 'aqarand_is_arabic_locale' ) ? aqarand_is_arabic_locale() : is_rtl();
