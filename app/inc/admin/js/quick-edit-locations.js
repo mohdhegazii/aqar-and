@@ -22,16 +22,38 @@
             var post_id = (typeof id === 'object') ? parseInt(this.getId(id), 10) : 0;
             if (post_id > 0) {
                 var editRow = $('#edit-' + post_id);
-                var postRow = $('#post-' + post_id);
-                var locationData = $('.jawda-location-data', postRow);
 
-                fetchAndSetInitialValues(editRow, {
-                    gov: locationData.data('gov-id'),
-                    city: locationData.data('city-id'),
-                    district: locationData.data('district-id')
-                });
+                fetchProjectLocation(post_id)
+                    .done(function(response) {
+                        var data = (response && response.success && response.data) ? response.data : {};
+                        fetchAndSetInitialValues(editRow, normalizeLocationIds(data));
+                    })
+                    .fail(function() {
+                        fetchAndSetInitialValues(editRow, normalizeLocationIds());
+                    });
             }
         };
+    }
+
+    function normalizeLocationIds(payload) {
+        var data = payload || {};
+
+        return {
+            gov: data.gov_id ? String(data.gov_id) : '',
+            city: data.city_id ? String(data.city_id) : '',
+            district: data.district_id ? String(data.district_id) : ''
+        };
+    }
+
+    function fetchProjectLocation(postId) {
+        return $.ajax({
+            url: CF_DEP.ajax_url,
+            data: {
+                action: 'jawda_get_project_location',
+                nonce: CF_DEP.nonce,
+                post_id: postId
+            }
+        });
     }
 
     function fetchAndSetInitialValues(container, ids) {

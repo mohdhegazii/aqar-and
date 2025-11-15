@@ -115,21 +115,6 @@ function jawda_enqueue_quick_edit_locations_js($hook) {
 add_action('admin_enqueue_scripts', 'jawda_enqueue_quick_edit_locations_js');
 
 /**
- * Adds the project's location data to a hidden div in a column for easy access in javascript.
- */
-function jawda_add_location_data_to_project_column($column, $post_id) {
-    if ($column === 'taxonomy-projects_developer') {
-        printf(
-            '<div class="jawda-location-data" style="display:none;" data-gov-id="%s" data-city-id="%s" data-district-id="%s"></div>',
-            esc_attr(get_post_meta($post_id, 'loc_governorate_id', true)),
-            esc_attr(get_post_meta($post_id, 'loc_city_id', true)),
-            esc_attr(get_post_meta($post_id, 'loc_district_id', true))
-        );
-    }
-}
-add_action('manage_projects_posts_custom_column', 'jawda_add_location_data_to_project_column', 10, 2);
-
-/**
  * AJAX handler to get all governorates, respecting the current language.
  */
 add_action('wp_ajax_cf_dep_get_governorates', function() {
@@ -169,6 +154,30 @@ add_action('wp_ajax_cf_dep_get_governorates', function() {
         }
     }
     wp_send_json_success(['options' => $options]);
+});
+
+/**
+ * Fetch the saved location for a single project so the quick edit form always reflects the
+ * latest value, even if the list table has not been refreshed yet.
+ */
+add_action('wp_ajax_jawda_get_project_location', function() {
+    check_ajax_referer('cf_dep_nonce', 'nonce');
+
+    $post_id = isset($_GET['post_id']) ? absint($_GET['post_id']) : 0;
+
+    if (!$post_id || get_post_type($post_id) !== 'projects') {
+        wp_send_json_error(['message' => __('Invalid project.', 'aqarand')], 400);
+    }
+
+    if (!current_user_can('edit_post', $post_id)) {
+        wp_send_json_error(['message' => __('You are not allowed to edit this project.', 'aqarand')], 403);
+    }
+
+    wp_send_json_success([
+        'gov_id'     => (int) get_post_meta($post_id, 'loc_governorate_id', true),
+        'city_id'    => (int) get_post_meta($post_id, 'loc_city_id', true),
+        'district_id'=> (int) get_post_meta($post_id, 'loc_district_id', true),
+    ]);
 });
 
 /**
