@@ -88,8 +88,8 @@ function get_my_scripts(){
   echo '<script>var global = {"ajax":'.json_encode( admin_url( "admin-ajax.php" ) ).'};</script>'."\n";
   echo '<script>var search_nonce = {"nonce":"'.$search_nonce.'"}</script>';
   echo '<script>window.aqarandDisableLegacySiteformHandler = true;</script>'."\n";
-  echo '<script src="'.get_template_directory_uri().'/assets/js/frontend-locations.js?v=1.0"></script>'."\n";
   echo '<script src="'.get_template_directory_uri().'/assets/js/'.$ldir.'/script.js?v=01"></script>'."\n";
+  echo '<script src="'.get_template_directory_uri().'/assets/js/frontend-locations.js?v=1.0"></script>'."\n";
   echo '<script src="'.wjsurl.'main.js?v=1.0"></script>'."\n";
   ?>
   <script>
