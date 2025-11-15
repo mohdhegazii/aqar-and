@@ -48,8 +48,8 @@ function get_my_styles(){
     .project-services__list--columns-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
     .project-services__item--toggle { order: initial !important; }
     .project-services__item--toggle--bottom { order: initial !important; grid-column: auto !important; }
-    .project-services__item--extra[hidden] { display: none !important; }
     .project-services--collapsible:not(.project-services--ready) .project-services__item--toggle { display: none !important; }
+    .project-services--ready:not(.project-services--expanded) .project-services__item--extra { display: none !important; }
 
     @media (max-width: 991px) {
       .project-services__list { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px; }
@@ -112,7 +112,7 @@ function get_my_scripts(){
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-      var serviceSections = document.querySelectorAll('.project-services.project-services--collapsible');
+      var sections = document.querySelectorAll('.project-services.project-services--collapsible');
       var columnClasses = [
         'project-services__list--columns-1',
         'project-services__list--columns-2',
@@ -121,19 +121,69 @@ function get_my_scripts(){
         'project-services__list--columns-5'
       ];
 
-      var toArray = function (nodeList) {
-        return Array.prototype.slice.call(nodeList || []);
+      var parseColumns = function (value) {
+        var parsed = parseInt(value, 10);
+        if (isNaN(parsed) || parsed < 1 || parsed > 5) {
+          return 0;
+        }
+        return parsed;
+      };
+
+      var updateColumns = function (list, columns) {
+        if (!list) {
+          return;
+        }
+        for (var idx = 0; idx < columnClasses.length; idx++) {
+          list.classList.remove(columnClasses[idx]);
+        }
+        if (columns) {
+          list.classList.add('project-services__list--columns-' + columns);
+        }
+      };
+
+      var hideExtra = function (node) {
+        if (!node) {
+          return;
+        }
+        node.setAttribute('aria-hidden', 'true');
+        node.setAttribute('hidden', 'hidden');
+        node.style.display = '';
+      };
+
+      var showExtra = function (node) {
+        if (!node) {
+          return;
+        }
+        node.removeAttribute('aria-hidden');
+        node.removeAttribute('hidden');
+        node.style.display = '';
+      };
+
+      var findFirstExtra = function (extras, list) {
+        if (!extras || !list) {
+          return null;
+        }
+        for (var idx = 0; idx < extras.length; idx++) {
+          if (extras[idx] && extras[idx].parentNode === list) {
+            return extras[idx];
+          }
+        }
+        return null;
       };
 
       var initSection = function (section) {
+        if (!section) {
+          return;
+        }
+
         var list = section.querySelector('.project-services__list');
         var toggle = section.querySelector('.project-services__item--toggle');
         if (!list || !toggle) {
           return;
         }
 
-        var extras = toArray(list.querySelectorAll('.project-services__item--extra'));
-        var primaryItems = toArray(list.querySelectorAll('.project-services__item--primary:not(.project-services__item--extra)'));
+        var extras = list.querySelectorAll('.project-services__item--extra');
+        var primaryCount = list.querySelectorAll('.project-services__item--primary').length - extras.length;
         if (!extras.length) {
           section.classList.remove('project-services--collapsible');
           return;
@@ -141,35 +191,22 @@ function get_my_scripts(){
 
         section.classList.add('project-services--ready');
         var moreLabel = toggle.getAttribute('data-more-label') || toggle.textContent || '';
-        var lessLabel = toggle.getAttribute('data-less-label') || moreLabel;
+        var lessLabel = toggle.getAttribute('data-less-label') || moreLabel || '';
 
-        var collapsedColumnsAttr = list.getAttribute('data-columns-collapsed');
-        var expandedColumnsAttr = list.getAttribute('data-columns-expanded');
-        var collapsedLimitAttr = list.getAttribute('data-collapsed-limit');
-        var collapsedColumns = collapsedColumnsAttr ? parseInt(collapsedColumnsAttr, 10) : 0;
-        var expandedColumns = expandedColumnsAttr ? parseInt(expandedColumnsAttr, 10) : collapsedColumns;
-        var collapsedLimit = collapsedLimitAttr ? parseInt(collapsedLimitAttr, 10) : primaryItems.length;
+        var collapsedColumns = parseColumns(list.getAttribute('data-columns-collapsed'));
+        var expandedColumns = parseColumns(list.getAttribute('data-columns-expanded'));
+        var collapsedLimit = parseInt(list.getAttribute('data-collapsed-limit'), 10);
+        if (isNaN(collapsedLimit) || collapsedLimit < 1) {
+          collapsedLimit = primaryCount;
+        }
 
-        var setColumns = function (columns) {
-          if (!columns || isNaN(columns)) {
-            return;
-          }
-          for (var idx = 0; idx < columnClasses.length; idx++) {
-            list.classList.remove(columnClasses[idx]);
-          }
-          list.classList.add('project-services__list--columns-' + columns);
-        };
+        var fallbackCollapsed = collapsedColumns || Math.max(1, Math.min(5, collapsedLimit + 1));
+        var fallbackExpanded = expandedColumns || Math.max(1, Math.min(5, primaryCount + extras.length));
 
         var placeToggleBeforeExtras = function () {
-          var referenceNode = null;
-          for (var j = 0; j < extras.length; j++) {
-            if (extras[j].parentElement === list) {
-              referenceNode = extras[j];
-              break;
-            }
-          }
-          if (referenceNode) {
-            list.insertBefore(toggle, referenceNode);
+          var reference = findFirstExtra(extras, list);
+          if (reference) {
+            list.insertBefore(toggle, reference);
           } else {
             list.appendChild(toggle);
           }
@@ -178,37 +215,28 @@ function get_my_scripts(){
         var collapse = function (shouldScroll) {
           section.classList.remove('project-services--expanded');
           toggle.setAttribute('aria-expanded', 'false');
-          if (moreLabel) {
-            toggle.textContent = moreLabel;
-          }
-          for (var k = 0; k < extras.length; k++) {
-            extras[k].setAttribute('hidden', '');
+          toggle.textContent = moreLabel;
+          for (var idx = 0; idx < extras.length; idx++) {
+            hideExtra(extras[idx]);
           }
           placeToggleBeforeExtras();
           toggle.classList.remove('project-services__item--toggle--bottom');
-          var fallbackCollapsed = Math.max(1, Math.min(5, collapsedLimit + (extras.length ? 1 : 0)));
-          setColumns(collapsedColumns || fallbackCollapsed);
-          if (shouldScroll) {
-            var scrollOffset = 120;
-            var listTop = list.getBoundingClientRect().top + window.pageYOffset;
-            window.scrollTo({
-              top: Math.max(listTop - scrollOffset, 0),
-              behavior: 'smooth'
-            });
+          updateColumns(list, fallbackCollapsed);
+          if (shouldScroll && list && typeof list.scrollIntoView === 'function') {
+            list.scrollIntoView();
           }
         };
 
         var expand = function () {
           section.classList.add('project-services--expanded');
           toggle.setAttribute('aria-expanded', 'true');
-          toggle.textContent = lessLabel || moreLabel;
-          for (var m = 0; m < extras.length; m++) {
-            extras[m].removeAttribute('hidden');
+          toggle.textContent = lessLabel;
+          for (var idx = 0; idx < extras.length; idx++) {
+            showExtra(extras[idx]);
           }
           list.appendChild(toggle);
           toggle.classList.add('project-services__item--toggle--bottom');
-          var fallbackExpanded = Math.max(1, Math.min(5, primaryItems.length + extras.length));
-          setColumns(expandedColumns || collapsedColumns || fallbackExpanded);
+          updateColumns(list, fallbackExpanded);
         };
 
         collapse(false);
@@ -222,8 +250,8 @@ function get_my_scripts(){
         });
       };
 
-      for (var i = 0; i < serviceSections.length; i++) {
-        initSection(serviceSections[i]);
+      for (var i = 0; i < sections.length; i++) {
+        initSection(sections[i]);
       }
     });
 
