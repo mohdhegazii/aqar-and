@@ -13,13 +13,32 @@ function get_my_related_projects() {
 
   $current_post_id    = get_the_ID();
   $main_category_id   = absint( get_post_meta( $current_post_id, 'jawda_main_category_id', true ) );
+  $district_id        = absint( get_post_meta( $current_post_id, 'loc_district_id', true ) );
+  $city_id            = absint( get_post_meta( $current_post_id, 'loc_city_id', true ) );
+  $governorate_id     = absint( get_post_meta( $current_post_id, 'loc_governorate_id', true ) );
   $posts_per_section  = 5;
 
   if ( ! $main_category_id ) {
       return;
   }
 
+  $current_post_date = get_post_time( 'Y-m-d H:i:s', false, $current_post_id );
+
+  $base_args = array(
+      'post_type'              => 'projects',
+      'post_status'            => 'publish',
+      'posts_per_page'         => $posts_per_section,
+      'orderby'                => 'date',
+      'order'                  => 'DESC',
+      'fields'                 => 'ids',
+      'post__not_in'           => array( $current_post_id ),
+      'no_found_rows'          => true,
+      'update_post_meta_cache' => false,
+      'update_post_term_cache' => false,
+  );
+
   $base_meta_query = array(
+      'relation' => 'AND',
       array(
           'key'     => 'jawda_main_category_id',
           'value'   => $main_category_id,
@@ -27,43 +46,111 @@ function get_my_related_projects() {
       ),
   );
 
-  $all_projects_query = new WP_Query(
-      array(
-          'post_type'              => 'projects',
-          'post_status'            => 'publish',
-          'posts_per_page'         => -1,
-          'orderby'                => 'date',
-          'order'                  => 'DESC',
-          'meta_query'             => $base_meta_query,
-          'fields'                 => 'ids',
-          'no_found_rows'          => true,
-          'update_post_meta_cache' => false,
-          'update_post_term_cache' => false,
-      )
+  $collect_related_projects = function( $meta_key, $meta_value, $remaining, $exclude_ids, $direction ) use ( $base_args, $base_meta_query, $current_post_date ) {
+      if ( $remaining <= 0 ) {
+          return array();
+      }
+
+      if ( $meta_key && ! $meta_value ) {
+          return array();
+      }
+
+      $args                 = $base_args;
+      $args['posts_per_page'] = $remaining;
+      $args['post__not_in'] = array_values( array_unique( array_merge( $base_args['post__not_in'], $exclude_ids ) ) );
+
+      $meta_query = $base_meta_query;
+
+      if ( $meta_key ) {
+          $meta_query[] = array(
+              'key'     => $meta_key,
+              'value'   => $meta_value,
+              'compare' => '=',
+          );
+      }
+
+      $args['meta_query'] = $meta_query;
+
+      if ( 'before' === $direction ) {
+          $args['date_query'] = array(
+              array(
+                  'column'    => 'post_date',
+                  'before'    => $current_post_date,
+                  'inclusive' => false,
+              ),
+          );
+      } elseif ( 'after' === $direction ) {
+          $args['date_query'] = array(
+              array(
+                  'column'    => 'post_date',
+                  'after'     => $current_post_date,
+                  'inclusive' => false,
+              ),
+          );
+      }
+
+      $query = new WP_Query( $args );
+      $ids   = array_map( 'intval', $query->posts );
+
+      wp_reset_postdata();
+
+      return $ids;
+  };
+
+  $location_meta_order = array(
+      'loc_district_id'   => $district_id,
+      'loc_city_id'       => $city_id,
+      'loc_governorate_id'=> $governorate_id,
   );
 
   $related_ids = array();
 
-  if ( $all_projects_query->have_posts() ) {
-      $all_project_ids = $all_projects_query->posts;
-      $current_index   = array_search( $current_post_id, $all_project_ids, true );
+  foreach ( $location_meta_order as $meta_key => $meta_value ) {
+      $remaining = $posts_per_section - count( $related_ids );
 
-      if ( false !== $current_index ) {
-          $total_projects = count( $all_project_ids );
-          $max_related    = min( $posts_per_section, max( 0, $total_projects - 1 ) );
+      if ( $remaining <= 0 ) {
+          break;
+      }
 
-          if ( $max_related > 0 ) {
-              $pointer = ( $current_index + 1 ) % $total_projects;
+      $related_ids = array_merge(
+          $related_ids,
+          $collect_related_projects( $meta_key, $meta_value, $remaining, $related_ids, 'before' )
+      );
+  }
 
-              while ( count( $related_ids ) < $max_related && $pointer !== $current_index ) {
-                  $related_ids[] = $all_project_ids[ $pointer ];
-                  $pointer       = ( $pointer + 1 ) % $total_projects;
-              }
+  if ( count( $related_ids ) < $posts_per_section ) {
+      foreach ( $location_meta_order as $meta_key => $meta_value ) {
+          $remaining = $posts_per_section - count( $related_ids );
+
+          if ( $remaining <= 0 ) {
+              break;
           }
+
+          $related_ids = array_merge(
+              $related_ids,
+              $collect_related_projects( $meta_key, $meta_value, $remaining, $related_ids, 'after' )
+          );
       }
   }
 
-  wp_reset_postdata();
+  if ( count( $related_ids ) < $posts_per_section ) {
+      $remaining   = $posts_per_section - count( $related_ids );
+      $related_ids = array_merge(
+          $related_ids,
+          $collect_related_projects( null, null, $remaining, $related_ids, 'before' )
+      );
+  }
+
+  if ( count( $related_ids ) < $posts_per_section ) {
+      $remaining   = $posts_per_section - count( $related_ids );
+      $related_ids = array_merge(
+          $related_ids,
+          $collect_related_projects( null, null, $remaining, $related_ids, 'after' )
+      );
+  }
+
+  $related_ids = array_values( array_unique( array_filter( $related_ids ) ) );
+  $related_ids = array_slice( $related_ids, 0, $posts_per_section );
 
   if ( ! empty( $related_ids ) ) {
       global $wpdb;
@@ -84,8 +171,8 @@ function get_my_related_projects() {
 
       if ( $category_label ) {
           $heading_text = $is_ar
-              ? sprintf( 'مشروعات %s السابقة', $category_label )
-              : sprintf( 'Previous %s projects', $category_label );
+              ? sprintf( 'مشروعات %s في نفس المنطقة', $category_label )
+              : sprintf( '%s projects in the same area', $category_label );
       }
 
       ?>
