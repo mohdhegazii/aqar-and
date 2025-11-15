@@ -15,43 +15,60 @@ function get_my_related_projects() {
 
   $related_project_ids = jawda_get_project_internal_links( $current_post_id );
   $heading             = jawda_get_project_internal_links_heading( $current_post_id );
+  $fallback_data       = null;
 
   if ( empty( $related_project_ids ) ) {
-      $fallback = jawda_get_project_internal_links_fallback_data( $current_post_id );
+      $fallback_data = jawda_get_project_internal_links_fallback_data( $current_post_id );
 
-      if ( isset( $fallback['ids'] ) && is_array( $fallback['ids'] ) ) {
-          $related_project_ids = $fallback['ids'];
+      if ( isset( $fallback_data['ids'] ) && is_array( $fallback_data['ids'] ) ) {
+          $related_project_ids = $fallback_data['ids'];
       }
 
-      if ( '' === $heading && ! empty( $fallback['heading'] ) ) {
-          $heading = $fallback['heading'];
+      if ( '' === $heading && ! empty( $fallback_data['heading'] ) ) {
+          $heading = $fallback_data['heading'];
       }
   }
 
-  if ( empty( $related_project_ids ) ) {
-      return;
-  }
+  $filter_ids = function( $ids ) use ( $current_post_id ) {
+      $filtered = array();
+      $seen     = array();
 
-  $filtered_ids = array();
-  $seen         = array();
+      foreach ( (array) $ids as $project_id ) {
+          $project_id = absint( $project_id );
 
-  foreach ( $related_project_ids as $project_id ) {
-      $project_id = absint( $project_id );
+          if ( ! $project_id || $project_id === $current_post_id ) {
+              continue;
+          }
 
-      if ( $project_id === $current_post_id ) {
-          continue;
+          if ( isset( $seen[ $project_id ] ) ) {
+              continue;
+          }
+
+          if ( 'publish' !== get_post_status( $project_id ) ) {
+              continue;
+          }
+
+          $seen[ $project_id ] = true;
+          $filtered[]          = $project_id;
       }
 
-      if ( isset( $seen[ $project_id ] ) ) {
-          continue;
+      return $filtered;
+  };
+
+  $filtered_ids = $filter_ids( $related_project_ids );
+
+  if ( empty( $filtered_ids ) ) {
+      if ( ! is_array( $fallback_data ) ) {
+          $fallback_data = jawda_get_project_internal_links_fallback_data( $current_post_id );
       }
 
-      if ( 'publish' !== get_post_status( $project_id ) ) {
-          continue;
+      if ( ! empty( $fallback_data['ids'] ) ) {
+          $filtered_ids = $filter_ids( $fallback_data['ids'] );
       }
 
-      $seen[ $project_id ] = true;
-      $filtered_ids[]      = $project_id;
+      if ( '' === $heading && ! empty( $fallback_data['heading'] ) ) {
+          $heading = $fallback_data['heading'];
+      }
   }
 
   if ( empty( $filtered_ids ) ) {
